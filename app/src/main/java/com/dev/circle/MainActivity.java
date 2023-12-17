@@ -1,17 +1,22 @@
 package com.dev.circle;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.constraintlayout.widget.ConstraintLayout;
 
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.Point;
 import android.graphics.PointF;
 import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.view.Display;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.Window;
+import android.view.WindowManager;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 
 import java.util.Timer;
@@ -21,6 +26,10 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_HIDE_NAVIGATION);
+        supportRequestWindowFeature(Window.FEATURE_NO_TITLE);
+        getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
+                WindowManager.LayoutParams.FLAG_FULLSCREEN);
         super.onCreate(savedInstanceState);
         setContentView(new DrawTZ(this));
     }
@@ -28,8 +37,6 @@ public class MainActivity extends AppCompatActivity {
         private float radius = 70;
         private float x = 0;
         private  float y = 0;
-        private float prev_x = 0;
-        private float prev_y = 0;
         private double maxWidth;
         private double maxHeight;
         private double angle;
@@ -48,23 +55,22 @@ public class MainActivity extends AppCompatActivity {
         }
         private void init(){
             Display display = getWindowManager().getDefaultDisplay();
-            maxWidth = display.getWidth();
-            maxHeight = display.getHeight();
-//            System.out.println("max width and max height:  " + maxWidth + " " + maxHeight);
+            Point size = new Point();
+            display.getSize(size);
+            maxWidth = size.x;
+            maxHeight = size.y;
             angle = Math.random() * 360;
             //get random start positions;
             float[] start_pos = getSpawn();
-//            float[] start_pos = {(float) (maxWidth/2), (float) (maxHeight/2)};
             x = start_pos[0];
             y = start_pos[1];
             Timer timer = new Timer();
-            int time = 120;
+            int time = 1;
 
             TimerTask timerTask = new TimerTask() {
                 @Override
                 public void run() {
                     updatePosition();
-//                    System.out.println("x and y for drawing: " + x + " " + y + " angle: " + angle);
                     postInvalidate();
                 }
             };
@@ -84,6 +90,7 @@ public class MainActivity extends AppCompatActivity {
                     float[] start_pos = getSpawn();
                     x = start_pos[0];
                     y = start_pos[1];
+                    angle = Math.random() * 180;
                     postInvalidate();
                     isAlive=true;
 
@@ -95,7 +102,7 @@ public class MainActivity extends AppCompatActivity {
             float dx = a.x - b.x;
             float dy = a.y - b.y;
             float distance = (float) Math.sqrt(dx * dx + dy * dy);
-            if (distance <=70){
+            if (distance < radius){
                 return true;
             }else return  false;
         }
@@ -106,7 +113,7 @@ public class MainActivity extends AppCompatActivity {
             float mouse_y = event.getY();
             PointF mouse = new PointF(mouse_x,mouse_y);
             PointF circle = new PointF(x,y);
-            if (checkDistance(mouse,circle)){
+            if (checkDistance(mouse,circle) && isAlive){
                 total_score++;
                 respawnCircle();
             }
@@ -114,28 +121,24 @@ public class MainActivity extends AppCompatActivity {
             return super.onTouchEvent(event);
         }
 
-        private void updatePosition(){
-            boolean resetCoord = false;
-            double[] newPos = setMoveVector(x,y,angle);
-            prev_x = x;
-            prev_y = y;
+        private void updatePosition() {
+            double[] newPos = setMoveVector(x, y, angle);
             x = (float) newPos[0];
             y = (float) newPos[1];
-            if (x+radius >= maxWidth - 40 || x - radius <= 40){
+
+            // Замінено умови зіткнення з межами екрана
+            if (x < radius - 15  || x > maxWidth - radius + 15) {
                 angle = 180 - angle;
-                angle = angle % 360;
-//                System.out.println("first if distance ");
-                resetCoord = true;
-                newPos = setMoveVector(x,y,angle);
+                angle %= 360;
+                newPos = setMoveVector(x, y, angle);
+                x = (float) newPos[0];
+                y = (float) newPos[1];
             }
-            if (y+radius >= maxHeight - 40 || y-radius <= 40){
+
+            if (y < radius - 15 || y > maxHeight - radius + 40) {
                 angle = 360 - angle;
-                angle = angle % 360;
-//                System.out.println("stuknulo ob verh ili niz");
-                resetCoord = true;
-                newPos = setMoveVector(x,y,angle);
-            }
-            if (resetCoord){
+                angle %= 360;
+                newPos = setMoveVector(x, y, angle);
                 x = (float) newPos[0];
                 y = (float) newPos[1];
             }
@@ -152,19 +155,15 @@ public class MainActivity extends AppCompatActivity {
             canvas.drawColor(Color.WHITE);
             if (isAlive) {
                 canvas.drawCircle(x, y, radius, paint);
-//                canvas.drawCircle(x, y, 10, paint2);
             }
             canvas.drawText(Integer.toString(total_score),50,50,paint2);
         }
 
-        private double[] setMoveVector(double x, double y, double angle){
-            int speed = 50;
-            int time = 1;
-            double new_x =Math.round(x + speed * Math.cos((angle * 3.14)/180));
-            double new_y =Math.round(y + speed * Math.sin((angle*3.14)/180));
-//            System.out.println("return x: " + new_x + " and y: "  + new_y + " this coords set for angle: "+ angle);
-//            System.out.println("cos for angle: " + Math.cos((angle * 3.14)/180) + " sin: " + Math.sin((angle*3.14)/180));
-            return new double[]{new_x,new_y};
+        private double[] setMoveVector(double x, double y, double angle) {
+            int speed = 1;
+            double new_x = x + speed * Math.cos((angle * Math.PI) / 180);
+            double new_y = y + speed * Math.sin((angle * Math.PI) / 180);
+            return new double[]{new_x, new_y};
         }
 
     }
